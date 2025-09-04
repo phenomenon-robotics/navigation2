@@ -249,12 +249,13 @@ bool SimpleChargingDock::isDocked()
   }
 
   // Find base pose in target frame
+  RCLCPP_INFO(node_->get_logger(), "Finding base pose in target frame...");
   geometry_msgs::msg::PoseStamped base_pose;
   base_pose.header.stamp = rclcpp::Time(0);
   base_pose.header.frame_id = base_frame_id_;
   base_pose.pose.orientation.w = 1.0;
   try {
-    tf2_buffer_->transform(base_pose, base_pose, dock_pose_.header.frame_id);
+    tf2_buffer_->transform(base_pose, base_pose, dock_pose_.header.frame_id, tf2::durationFromSec(0.1));
   } catch (const tf2::TransformException & ex) {
     return false;
   }
@@ -263,8 +264,26 @@ bool SimpleChargingDock::isDocked()
   double d = std::hypot(
     base_pose.pose.position.x - dock_pose_.pose.position.x,
     base_pose.pose.position.y - dock_pose_.pose.position.y);
+
+  RCLCPP_INFO(node_->get_logger(),
+              "Robot XY: [%.3f, %.3f], Dock XY: [%.3f, %.3f], Distance: %.3f",
+              base_pose.pose.position.x,
+              base_pose.pose.position.y,
+              dock_pose_.pose.position.x,
+              dock_pose_.pose.position.y,
+              d);
+
   return d < docking_threshold_;
 }
+
+/*bool SimpleChargingDock::isNearDock()
+{
+  double d = std::hypot(
+    base_pose.pose.position.x - dock_pose_.pose.position.x,
+    base_pose.pose.position.y - dock_pose_.pose.position.y);
+
+  return d < (docking_threshold_ + 0.05);
+}*/
 
 bool SimpleChargingDock::isCharging()
 {

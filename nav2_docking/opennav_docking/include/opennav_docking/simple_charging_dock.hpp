@@ -87,6 +87,7 @@ public:
    * @copydoc opennav_docking_core::ChargingDock::isDocked
    */
   virtual bool isDocked();
+  //virtual bool isNearDock();
 
   /**
    * @copydoc opennav_docking_core::ChargingDock::isCharging

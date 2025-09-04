@@ -113,13 +113,32 @@ bool Controller::computeVelocityCommand(
   bool backward)
 {
   std::lock_guard<std::mutex> lock(dynamic_params_lock_);
+  RCLCPP_INFO(logger_, "Computing velocity commands...");
+   // Log the input pose before calling calculateRegularVelocity
+  double yaw_rad = tf2::getYaw(pose.orientation);
+  double yaw_deg = yaw_rad * 180.0 / M_PI;
+
+  RCLCPP_INFO(logger_,
+     "Backward: %s | Input pose -> x: %.3f, y: %.3f, z: %.3f, yaw: %.2f deg",
+      backward ? "true" : "false",
+      pose.position.x, pose.position.y, pose.position.z, yaw_deg);
+
   cmd = control_law_->calculateRegularVelocity(pose, backward);
+
+  // Log backward flag and computed command
+  RCLCPP_INFO(logger_,
+      "Backward: %s | Computed cmd -> linear: [x: %.3f, y: %.3f, z: %.3f], angular: [x: %.3f, y: %.3f, z: %.3f]",
+      backward ? "true" : "false",
+      cmd.linear.x, cmd.linear.y, cmd.linear.z,
+      cmd.angular.x, cmd.angular.y, cmd.angular.z);
+
   return isTrajectoryCollisionFree(pose, is_docking, backward);
 }
 
 bool Controller::isTrajectoryCollisionFree(
   const geometry_msgs::msg::Pose & target_pose, bool is_docking, bool backward)
 {
+  RCLCPP_INFO(logger_, "Checking collisions...");
   // Visualization of the trajectory
   nav_msgs::msg::Path trajectory;
   trajectory.header.frame_id = base_frame_;
@@ -130,11 +149,14 @@ bool Controller::isTrajectoryCollisionFree(
   next_pose.header.frame_id = base_frame_;
   trajectory.poses.push_back(next_pose);
 
+  // Log the transform tolerance before looking up the transform
+  RCLCPP_INFO(logger_, "Transform tolerance is %.3f seconds", transform_tolerance_);
+
   // Get the transform from base_frame to fixed_frame
   geometry_msgs::msg::TransformStamped base_to_fixed_transform;
   try {
     base_to_fixed_transform = tf2_buffer_->lookupTransform(
-      fixed_frame_, base_frame_, trajectory.header.stamp,
+      fixed_frame_, base_frame_, tf2::TimePointZero,
       tf2::durationFromSec(transform_tolerance_));
   } catch (tf2::TransformException & ex) {
     RCLCPP_ERROR(
@@ -144,6 +166,7 @@ bool Controller::isTrajectoryCollisionFree(
   }
 
   // Generate path
+  RCLCPP_INFO(logger_, "Generating path...");
   double distance = std::numeric_limits<double>::max();
   unsigned int max_iter = static_cast<unsigned int>(ceil(projection_time_ / simulation_time_step_));
 
@@ -180,6 +203,8 @@ bool Controller::isTrajectoryCollisionFree(
       trajectory_pub_->publish(trajectory);
       return false;
     }
+
+    // RCLCPP_INFO(logger_, "No collision detected...");
 
     // Check if we reach the goal
     distance = nav2_util::geometry_utils::euclidean_distance(target_pose, next_pose.pose);

@@ -270,7 +270,14 @@ void DockingServer::dockRobot()
 
     // Construct initial estimate of where the dock is located in fixed_frame
     auto dock_pose = utils::getDockPoseStamped(dock, rclcpp::Time(0));
-    tf2_buffer_->transform(dock_pose, dock_pose, fixed_frame_);
+    RCLCPP_INFO(get_logger(), "Getting dock pose in fixed frame..");
+    tf2_buffer_->transform(dock_pose, dock_pose, fixed_frame_, tf2::durationFromSec(0.1));
+    RCLCPP_INFO(get_logger(),
+                "Dock pose in frame '%s': [x=%.3f, y=%.3f, z=%.3f]",
+                fixed_frame_.c_str(),
+                dock_pose.pose.position.x,
+                dock_pose.pose.position.y,
+                dock_pose.pose.position.z);
 
     // Get initial detection of dock before proceeding to move
     doInitialPerception(dock, dock_pose);
@@ -438,11 +445,21 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
         tf2::getYaw(target_pose.pose.orientation) + M_PI);
     }
 
+    // Log target pose
+    double yaw_rad = tf2::getYaw(target_pose.pose.orientation);
+    double yaw_deg = yaw_rad * 180.0 / M_PI;
+    RCLCPP_INFO(this->get_logger(),
+        "Target pose -> x: %.3f, y: %.3f, z: %.3f, yaw: %.2f deg",
+        target_pose.pose.position.x,
+        target_pose.pose.position.y,
+        target_pose.pose.position.z,
+        yaw_deg);
+
     // The control law can get jittery when close to the end when atan2's can explode.
     // Thus, we backward project the controller's target pose a little bit after the
     // dock so that the robot never gets to the end of the spiral before its in contact
     // with the dock to stop the docking procedure.
-    const double backward_projection = 0.25;
+    const double backward_projection = -0.25;
     const double yaw = tf2::getYaw(target_pose.pose.orientation);
     target_pose.pose.position.x += cos(yaw) * backward_projection;
     target_pose.pose.position.y += sin(yaw) * backward_projection;
@@ -555,9 +572,17 @@ bool DockingServer::getCommandToPose(
   }
 
   // Transform target_pose into base_link frame
+  RCLCPP_INFO(get_logger(), "Transforming target into base_frame...");
   geometry_msgs::msg::PoseStamped target_pose = pose;
   target_pose.header.stamp = rclcpp::Time(0);
-  tf2_buffer_->transform(target_pose, target_pose, base_frame_);
+  tf2_buffer_->transform(target_pose, target_pose, base_frame_, tf2::durationFromSec(0.1));
+  RCLCPP_INFO(get_logger(),
+              "Target in frame '%s': [x=%.3f, y=%.3f, z=%.3f]",
+              base_frame_.c_str(),
+              robot_pose.pose.position.x,
+              robot_pose.pose.position.y,
+              robot_pose.pose.position.z);
+
 
   // Compute velocity command
   if (!controller_->computeVelocityCommand(target_pose.pose, cmd, is_docking, backward)) {
@@ -692,10 +717,20 @@ void DockingServer::undockRobot()
 
 geometry_msgs::msg::PoseStamped DockingServer::getRobotPoseInFrame(const std::string & frame)
 {
+  RCLCPP_INFO(get_logger(), "Getting robot pose in frame...");
+
   geometry_msgs::msg::PoseStamped robot_pose;
   robot_pose.header.frame_id = base_frame_;
   robot_pose.header.stamp = rclcpp::Time(0);
-  tf2_buffer_->transform(robot_pose, robot_pose, frame);
+  tf2_buffer_->transform(robot_pose, robot_pose, frame, tf2::durationFromSec(0.1));
+
+  RCLCPP_INFO(get_logger(),
+              "Robot pose in frame '%s': [x=%.3f, y=%.3f, z=%.3f]",
+              frame.c_str(),
+              robot_pose.pose.position.x,
+              robot_pose.pose.position.y,
+              robot_pose.pose.position.z);
+  
   return robot_pose;
 }
 
