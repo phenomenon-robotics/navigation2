@@ -48,6 +48,8 @@ void SimpleNonChargingDock::configure(
     node_, name + ".external_detection_rotation_roll", rclcpp::ParameterValue(-1.57));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".filter_coef", rclcpp::ParameterValue(0.1));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".dock_backwards", rclcpp::ParameterValue(false));
 
   // Optionally determine if docked via stall detection using joint_states
   nav2_util::declare_parameter_if_not_declared(
@@ -86,6 +88,7 @@ void SimpleNonChargingDock::configure(
   node_->get_parameter("base_frame", base_frame_id_);  // Get server base frame ID
   node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
   node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
+  node_->get_parameter(name + ".dock_backwards", dock_backwards_);
 
   // Setup filter
   double filter_coef;
@@ -146,6 +149,11 @@ geometry_msgs::msg::PoseStamped SimpleNonChargingDock::getStagingPose(
   // Publish staging pose for debugging purposes
   staging_pose_pub_->publish(staging_pose);
   return staging_pose;
+}
+
+bool SimpleNonChargingDock::isDockBackwardsEnabled()
+{
+    return dock_backwards_;
 }
 
 bool SimpleNonChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose, std::string)
@@ -244,6 +252,7 @@ bool SimpleNonChargingDock::isDocked()
   double d = std::hypot(
     base_pose.pose.position.x - dock_pose_.pose.position.x,
     base_pose.pose.position.y - dock_pose_.pose.position.y);
+  RCLCPP_INFO(node_->get_logger(), "Remaining distance: %2f",d);
   return d < docking_threshold_;
 }
 

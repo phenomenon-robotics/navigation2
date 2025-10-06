@@ -83,6 +83,9 @@ public:
    */
   virtual bool getRefinedPose(geometry_msgs::msg::PoseStamped & pose, std::string id) = 0;
 
+
+  virtual bool isDockBackwardsEnabled() = 0;
+
   /**
    * @brief Have we made contact with dock? This can be implemented in a variety
    * of ways: by establishing communications with the dock, by monitoring the

@@ -78,6 +78,11 @@ public:
     return false;
   }
 
+  virtual bool isDockBackwardsEnabled()
+  {
+    return true;
+  }
+
   virtual bool isDocked()
   {
     bool dock_action_called;

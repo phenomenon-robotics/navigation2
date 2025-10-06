@@ -77,6 +77,8 @@ void SimpleChargingDock::configure(
     node_, name + ".staging_x_offset", rclcpp::ParameterValue(-0.7));
   nav2_util::declare_parameter_if_not_declared(
     node_, name + ".staging_yaw_offset", rclcpp::ParameterValue(0.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name + ".dock_backwards", rclcpp::ParameterValue(false));
 
   node_->get_parameter(name + ".use_battery_status", use_battery_status_);
   node_->get_parameter(name + ".use_external_detection_pose", use_external_detection_pose_);
@@ -97,6 +99,7 @@ void SimpleChargingDock::configure(
   node_->get_parameter("base_frame", base_frame_id_);  // Get server base frame ID
   node_->get_parameter(name + ".staging_x_offset", staging_x_offset_);
   node_->get_parameter(name + ".staging_yaw_offset", staging_yaw_offset_);
+  node_->get_parameter(name + ".dock_backwards", dock_backwards_);
 
   // Setup filter
   double filter_coef;
@@ -234,6 +237,11 @@ bool SimpleChargingDock::getRefinedPose(geometry_msgs::msg::PoseStamped & pose, 
   dock_pose_pub_->publish(dock_pose_);
   pose = dock_pose_;
   return true;
+}
+
+bool SimpleChargingDock::isDockBackwardsEnabled()
+{
+    return dock_backwards_;
 }
 
 bool SimpleChargingDock::isDocked()

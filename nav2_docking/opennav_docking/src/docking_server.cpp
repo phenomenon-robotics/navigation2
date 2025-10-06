@@ -38,7 +38,6 @@ DockingServer::DockingServer(const rclcpp::NodeOptions & options)
   declare_parameter("max_retries", 3);
   declare_parameter("base_frame", "base_link");
   declare_parameter("fixed_frame", "odom");
-  declare_parameter("dock_backwards", false);
   declare_parameter("dock_prestaging_tolerance", 0.5);
 }
 
@@ -57,7 +56,6 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & state)
   get_parameter("max_retries", max_retries_);
   get_parameter("base_frame", base_frame_);
   get_parameter("fixed_frame", fixed_frame_);
-  get_parameter("dock_backwards", dock_backwards_);
   get_parameter("dock_prestaging_tolerance", dock_prestaging_tolerance_);
   RCLCPP_INFO(get_logger(), "Controller frequency set to %.4fHz", controller_frequency_);
 
@@ -93,6 +91,9 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & state)
     on_cleanup(state);
     return nav2_util::CallbackReturn::FAILURE;
   }
+
+  RCLCPP_INFO(get_logger(), "Calling on_configure...");
+  dock_backwards_ = false;
 
   return nav2_util::CallbackReturn::SUCCESS;
 }
@@ -434,6 +435,8 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
       throw opennav_docking_core::FailedToDetectDock("Failed dock detection");
     }
 
+    dock_backwards_ = dock->plugin->isDockBackwardsEnabled();
+
     // Transform target_pose into base_link frame
     geometry_msgs::msg::PoseStamped target_pose = dock_pose;
     target_pose.header.stamp = rclcpp::Time(0);
@@ -459,7 +462,7 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     // Thus, we backward project the controller's target pose a little bit after the
     // dock so that the robot never gets to the end of the spiral before its in contact
     // with the dock to stop the docking procedure.
-    const double backward_projection = -0.25;
+    const double backward_projection = 0.25;
     const double yaw = tf2::getYaw(target_pose.pose.orientation);
     target_pose.pose.position.x += cos(yaw) * backward_projection;
     target_pose.pose.position.y += sin(yaw) * backward_projection;
@@ -468,6 +471,7 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     // Compute and publish controls
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
+
     if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, true,
         dock_backwards_))
     {
@@ -668,6 +672,8 @@ void DockingServer::undockRobot()
         continue;
       }
 
+      dock_backwards_ = dock->isDockBackwardsEnabled();
+      
       // Get command to approach staging pose
       auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
       command->header.stamp = now();
