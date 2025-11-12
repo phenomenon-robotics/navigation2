@@ -569,8 +569,13 @@ bool DockingServer::getCommandToPose(
   const double dist = std::hypot(
     robot_pose.pose.position.x - pose.pose.position.x,
     robot_pose.pose.position.y - pose.pose.position.y);
+
   const double yaw = angles::shortest_angular_distance(
     tf2::getYaw(robot_pose.pose.orientation), tf2::getYaw(pose.pose.orientation));
+
+  RCLCPP_INFO(get_logger(), "Distance: %2f Treshold: %2f",dist,linear_tolerance);
+  RCLCPP_INFO(get_logger(), "Yaw: %2f Treshold: %2f",yaw,angular_tolerance);
+
   if (dist < linear_tolerance && abs(yaw) < angular_tolerance) {
     return true;
   }
